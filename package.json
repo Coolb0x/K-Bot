@@ -1,0 +1,17 @@
+{
+  "name": "ai_bot_app",
+  "version": "1.0.0",
+  "description": "kb-ai-bot",
+  "license": "ISC",
+  "author": "Coolb0x",
+  "type": "commonjs",
+  "main": "app.js",
+  "scripts": {
+    "test": "test_command"
+  },
+  "dependencies": {
+    "@slack/bolt": "^4.2.0",
+    "dotenv": "^16.4.7",
+    "openai": "^4.86.1"
+  }
+}
