@@ -7,11 +7,15 @@
   "type": "commonjs",
   "main": "app.js",
   "scripts": {
+    "start": "node app.js",
     "test": "test_command"
   },
   "dependencies": {
     "@slack/bolt": "^4.2.0",
     "dotenv": "^16.4.7",
-    "openai": "^4.86.1"
+    "express": "^5.0.1",
+    "helmet": "^8.1.0",
+    "openai": "^4.86.1",
+    "winston": "^3.17.0"
   }
 }

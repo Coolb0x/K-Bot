@@ -1,17 +1,39 @@
 const { App, LogLevel, Assistant } = require("@slack/bolt");
 require("dotenv").config();
 const { OpenAI } = require("openai");
+const helmet = require("helmet");
+const express = require("express");
+const winston = require("winston");
 
 const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
 const slackBotToken = process.env.SLACK_BOT_TOKEN;
 const openaiApiKey = process.env.OPENAI_API_KEY;
+const port = process.env.PORT || 3000;
+const assistantId = process.env.OPENAI_ASSISTANT_ID;
+
+/** Logger Setup */
+const logger = winston.createLogger({
+  level: "info",
+  format: winston.format.json(),
+  transports: [
+    new winston.transports.File({ filename: "error.log", level: "error" }),
+    new winston.transports.File({ filename: "combined.log" }),
+  ],
+});
+
+if (process.env.NODE_ENV !== "production") {
+  logger.add(
+    new winston.transports.Console({
+      format: winston.format.simple(),
+    })
+  );
+}
 
 /** Slack App Initialization */
 const app = new App({
   token: slackBotToken,
   signingSecret: slackSigningSecret,
-  // Enable/Disable debug logging for development with below line
-  // logLevel: LogLevel.DEBUG,
+  logLevel: LogLevel.INFO,
 });
 
 /** OpenAI Setup */
@@ -67,7 +89,7 @@ async function runAssistant(assistantId, userInput) {
       return `Run failed with status: ${runStatus.status}`;
     }
   } catch (error) {
-    console.error("Error running assistant:", error);
+    logger.error("Error running assistant:", error);
     return `Error: ${error.message}`;
   }
 }
@@ -93,7 +115,7 @@ const assistant = new Assistant({
       });
 
       const messages = [{ role: "system", content: DEFAULT_SYSTEM_CONTENT }, ...threadHistory, userMessage];
-      const response = await runAssistant("asst_Bcy8adckdCKjQOPT2Gebjz5K", JSON.stringify(messages));
+      const response = await runAssistant(assistantId, JSON.stringify(messages));
       await say({ text: response });
     } catch (e) {
       logger.error(e);
@@ -114,8 +136,15 @@ app.assistant(assistant);
 
 (async () => {
   try {
-    await app.start(process.env.PORT || 3000);
+    await app.start(port);
     app.logger.info("⚡️ Bolt app is running!");
+
+    // Express server for additional security and middleware
+    const expressApp = express();
+    expressApp.use(helmet());
+    expressApp.listen(port, () => {
+      logger.info(`Express server listening on port ${port}`);
+    });
   } catch (error) {
     app.logger.error("Failed to start the app", error);
   }
