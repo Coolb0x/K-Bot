@@ -12,7 +12,6 @@
     "test": "test_command"
   },
   "dependencies": {
-    "@slack/bolt": "^4.2.0",
     "dotenv": "^16.4.7",
     "express": "^5.0.1",
     "helmet": "^8.1.0",
@@ -21,6 +20,7 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "@slack/bolt": "^4.2.1",
     "@types/express": "^5.0.1",
     "@types/node": "^22.13.14",
     "@types/winston": "^2.4.4",

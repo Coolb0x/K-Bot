@@ -1,40 +1,3 @@
-/** TypeScript Interfaces */
-
-// Interface for Slack message
-interface SlackMessage {
-  text: string;
-  channel: string;
-  thread_ts: string;
-  bot_id?: string;
-  ts: string;
-}
-
-// Interface for OpenAI message
-interface OpenAIMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
-
-// Interface for Assistant parameters
-interface AssistantParams {
-  client: any;
-  logger: any;
-  message: SlackMessage;
-  say: (message: { text: string }) => Promise<void>;
-  setTitle: (title: string) => Promise<void>;
-  setStatus: (status: string) => Promise<void>;
-}
-
-// Interface for ThreadStarted parameters
-interface ThreadStartedParams {
-  client: any;
-  logger: any;
-  message: SlackMessage;
-  say: (message: { text: string }) => Promise<void>;
-}
-
-/** Main Code */
-
 const { App, LogLevel, Assistant } = require("@slack/bolt");
 require("dotenv").config();
 const { OpenAI } = require("openai");
@@ -81,7 +44,7 @@ const openai = new OpenAI({
 // If added a system message, it will be prepended to the conversation - currently not used as it gives worse results
 const DEFAULT_SYSTEM_CONTENT = ``;
 
-async function runAssistant(assistantId: string, userInput: string) {
+async function runAssistant(assistantId, userInput) {
   try {
     // Create an empty thread
     const emptyThread = await openai.beta.threads.create();
@@ -114,33 +77,7 @@ async function runAssistant(assistantId: string, userInput: string) {
     if (runStatus.status === "completed") {
       // Retrieve Messages
       const messages = await openai.beta.threads.messages.list(threadId);
-      interface MessageContent {
-        type: string;
-        text: {
-          value: string;
-        };
-      }
-
-      interface AssistantMessage {
-        role: string;
-        content: MessageContent[];
-      }
-      interface MessageData {
-        data: AssistantMessage[];
-      }
-
-      interface MessagesListResponse {
-        data: AssistantMessage[];
-        object: string;
-        first_id: string;
-        last_id: string;
-        has_more: boolean;
-      }
-
-      const messagesData: MessagesListResponse = messages as MessagesListResponse;
-      const assistantMessages: AssistantMessage[] = messagesData.data.filter(
-        message => message.role === "assistant"
-      ) as AssistantMessage[];
+      const assistantMessages = messages.data.filter(message => message.role === "assistant");
 
       if (assistantMessages.length > 0) {
         const response = assistantMessages[0].content[0].text.value;
@@ -151,32 +88,14 @@ async function runAssistant(assistantId: string, userInput: string) {
     } else {
       return `Run failed with status: ${runStatus.status}`;
     }
-  } catch (error: any) {
+  } catch (error) {
     logger.error("Error running assistant:", error);
     return `Error: ${error.message}`;
   }
 }
 
-interface UserMessageParams {
-  client: any;
-  logger: any;
-  message: SlackMessage;
-  getThreadContext: any;
-  say: (message: { text: string }) => Promise<void>;
-  setTitle: (title: string) => Promise<void>;
-  setStatus: (status: string) => Promise<void>;
-}
-
 const assistant = new Assistant({
-  userMessage: async ({
-    client,
-    logger,
-    message,
-    getThreadContext,
-    say,
-    setTitle,
-    setStatus,
-  }: UserMessageParams) => {
+  userMessage: async ({ client, logger, message, getThreadContext, say, setTitle, setStatus }) => {
     const { channel, thread_ts } = message;
 
     try {
@@ -190,37 +109,21 @@ const assistant = new Assistant({
       });
 
       const userMessage = { role: "user", content: message.text };
-      interface ThreadMessage {
-        bot_id?: string;
-        text: string;
-      }
-
-      interface ThreadHistoryMessage {
-        role: "assistant" | "user";
-        content: string;
-      }
-
-      const threadHistory: ThreadHistoryMessage[] = thread.messages.map((m: ThreadMessage) => {
-        const role: "assistant" | "user" = m.bot_id ? "assistant" : "user";
+      const threadHistory = thread.messages.map(m => {
+        const role = m.bot_id ? "assistant" : "user";
         return { role, content: m.text };
       });
 
       const messages = [{ role: "system", content: DEFAULT_SYSTEM_CONTENT }, ...threadHistory, userMessage];
-      // Ensure assistantId is a string before calling runAssistant
-      if (typeof assistantId === "string") {
-        const response = await runAssistant(assistantId, JSON.stringify(messages));
-        await say({ text: response });
-      } else {
-        await say({ text: "Error: Assistant ID is not configured correctly." });
-        logger.error("Assistant ID is not a string:", assistantId);
-      }
+      const response = await runAssistant(assistantId, JSON.stringify(messages));
+      await say({ text: response });
     } catch (e) {
       logger.error(e);
       await say({ text: "Sorry, something went wrong!" });
     }
   },
   // The below threadStarted is the default behavior when a thread is started and required by the Assistant, so only logger is added
-  threadStarted: async ({ logger }: { logger: any }, say: any) => {
+  threadStarted: async ({ client, logger, message, say }) => {
     try {
       await say({ text: "Hello! I am your assistant." });
     } catch (e) {
