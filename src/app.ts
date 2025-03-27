@@ -17,7 +17,7 @@ const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
 const slackBotToken = process.env.SLACK_BOT_TOKEN;
 const openaiApiKey = process.env.OPENAI_API_KEY;
 const port = process.env.PORT || 3000;
-const assistantId = process.env.OPENAI_ASSISTANT_ID;
+// const assistantId = process.env.OPENAI_ASSISTANT_ID;
 
 /** Logger Setup */
 const logger = winston.createLogger({
@@ -127,6 +127,7 @@ const assistant = new Assistant({
         ts: thread_ts,
         oldest: thread_ts,
       });
+      //==================
 
       const userMessage = { role: "user", content: message.text };
 
@@ -136,14 +137,19 @@ const assistant = new Assistant({
       });
 
       const messages = [{ role: "system", content: DEFAULT_SYSTEM_CONTENT }, ...threadHistory, userMessage];
+      const response = await runAssistant("asst_Bcy8adckdCKjQOPT2Gebjz5K", JSON.stringify(messages));
+      await say({ text: response });
       // Ensure assistantId is a string before calling runAssistant
-      if (typeof assistantId === "string") {
-        const response = await runAssistant(assistantId, JSON.stringify(messages));
-        await say({ text: response });
-      } else {
-        await say({ text: "Error: Assistant ID is not configured correctly." });
-        logger.error("Assistant ID is not a string:", assistantId);
-      }
+      // if (typeof assistantId === "string") {
+      //   const response = await runAssistant("asst_Bcy8adckdCKjQOPT2Gebjz5K", JSON.stringify(messages));
+
+      //   //==================
+
+      //   await say({ text: response });
+      // } else {
+      //   await say({ text: "Error: Assistant ID is not configured correctly." });
+      //   logger.error("Assistant ID is not a string:", assistantId);
+      // }
     } catch (e) {
       logger.error(e);
       await say({ text: "Sorry, something went wrong!" });

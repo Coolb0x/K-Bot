@@ -77,6 +77,7 @@ async function runAssistant(assistantId, userInput) {
     if (runStatus.status === "completed") {
       // Retrieve Messages
       const messages = await openai.beta.threads.messages.list(threadId);
+
       const assistantMessages = messages.data.filter(message => message.role === "assistant");
 
       if (assistantMessages.length > 0) {
