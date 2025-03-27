@@ -1,10 +1,39 @@
-import {
-  MessagesListResponse,
-  AssistantMessage,
-  UserMessageParams,
-  ThreadHistoryMessage,
-  ThreadMessage,
-} from "./types";
+/** TypeScript Interfaces */
+
+// Interface for Slack message
+interface SlackMessage {
+  text: string;
+  channel: string;
+  thread_ts: string;
+  bot_id?: string;
+  ts: string;
+}
+
+// Interface for OpenAI message
+interface OpenAIMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
+// Interface for Assistant parameters
+interface AssistantParams {
+  client: any;
+  logger: any;
+  message: SlackMessage;
+  say: (message: { text: string }) => Promise<void>;
+  setTitle: (title: string) => Promise<void>;
+  setStatus: (status: string) => Promise<void>;
+}
+
+// Interface for ThreadStarted parameters
+interface ThreadStartedParams {
+  client: any;
+  logger: any;
+  message: SlackMessage;
+  say: (message: { text: string }) => Promise<void>;
+}
+
+/** Main Code */
 
 const { App, LogLevel, Assistant } = require("@slack/bolt");
 require("dotenv").config();
@@ -85,6 +114,28 @@ async function runAssistant(assistantId: string, userInput: string) {
     if (runStatus.status === "completed") {
       // Retrieve Messages
       const messages = await openai.beta.threads.messages.list(threadId);
+      interface MessageContent {
+        type: string;
+        text: {
+          value: string;
+        };
+      }
+
+      interface AssistantMessage {
+        role: string;
+        content: MessageContent[];
+      }
+      interface MessageData {
+        data: AssistantMessage[];
+      }
+
+      interface MessagesListResponse {
+        data: AssistantMessage[];
+        object: string;
+        first_id: string;
+        last_id: string;
+        has_more: boolean;
+      }
 
       const messagesData: MessagesListResponse = messages as MessagesListResponse;
       const assistantMessages: AssistantMessage[] = messagesData.data.filter(
@@ -104,6 +155,16 @@ async function runAssistant(assistantId: string, userInput: string) {
     logger.error("Error running assistant:", error);
     return `Error: ${error.message}`;
   }
+}
+
+interface UserMessageParams {
+  client: any;
+  logger: any;
+  message: SlackMessage;
+  getThreadContext: any;
+  say: (message: { text: string }) => Promise<void>;
+  setTitle: (title: string) => Promise<void>;
+  setStatus: (status: string) => Promise<void>;
 }
 
 const assistant = new Assistant({
@@ -129,6 +190,15 @@ const assistant = new Assistant({
       });
 
       const userMessage = { role: "user", content: message.text };
+      interface ThreadMessage {
+        bot_id?: string;
+        text: string;
+      }
+
+      interface ThreadHistoryMessage {
+        role: "assistant" | "user";
+        content: string;
+      }
 
       const threadHistory: ThreadHistoryMessage[] = thread.messages.map((m: ThreadMessage) => {
         const role: "assistant" | "user" = m.bot_id ? "assistant" : "user";
