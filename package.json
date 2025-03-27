@@ -5,9 +5,10 @@
   "license": "ISC",
   "author": "Coolb0x",
   "type": "commonjs",
-  "main": "app.js",
+  "main": "dist/app.js",
   "scripts": {
-    "start": "node app.js",
+    "start": "node dist/app.js",
+    "build": "tsc",
     "test": "test_command"
   },
   "dependencies": {
@@ -20,7 +21,12 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.1",
     "@types/node": "^22.13.14",
+    "@types/winston": "^2.4.4",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
+    "eslint": "^9.23.0",
     "typescript": "^5.8.2"
   }
 }
