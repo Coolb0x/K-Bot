@@ -1,17 +1,7 @@
-// Interfaces
-
-import {
-  MessagesListResponse,
-  AssistantMessage,
-  UserMessageParams,
-  ThreadHistoryMessage,
-  ThreadMessage,
-} from "./types";
-
-const { App, LogLevel, Assistant } = require("@slack/bolt");
 require("dotenv").config();
+import { AssistantMessageData, UserMessageParams } from "./types";
+const { App, LogLevel, Assistant } = require("@slack/bolt");
 const { OpenAI } = require("openai");
-
 const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
 const slackBotToken = process.env.SLACK_BOT_TOKEN;
 const openaiApiKey = process.env.OPENAI_API_KEY;
@@ -20,6 +10,7 @@ const openaiApiKey = process.env.OPENAI_API_KEY;
 const app = new App({
   token: slackBotToken,
   signingSecret: slackSigningSecret,
+  // Enable/Uncomment below for debugging
   // logLevel: LogLevel.DEBUG, // or LogLevel.INFO
 });
 
@@ -63,12 +54,6 @@ async function runAssistant(assistantId: string, threadId: any, userInput: strin
     if (runStatus.status === "completed") {
       // 5. Retrieve Messages
       const messages = await openai.beta.threads.messages.list(threadId);
-
-      //Check inferences for message and fix TS
-      interface AssistantMessageData {
-        role: string;
-        content: any;
-      }
 
       const assistantMessages: AssistantMessageData[] = messages.data.filter(
         (message: any) => message.role === "assistant"
@@ -152,13 +137,35 @@ const assistant = new Assistant({
     }
   },
   // The below threadStarted is the default behavior when a thread is started and required by the Assistant, so only logger is added
-  threadStarted: async ({ logger }: { logger: any }, say: any) => {
+
+  threadStarted: async ({ logger, message, client }: { logger: any; message: any; client: any }) => {
+    // JUST to debug / remove later
+    logger.info("Message object:", message);
     try {
-      await say({ text: "Hello! I am your assistant." });
+      // Ensure the message object is valid
+      if (!message || !message.channel) {
+        logger.error("Invalid message object: Missing 'channel' property.");
+        return;
+      }
+
+      // Use client.chat.postMessage to send a message
+      await client.chat.postMessage({
+        channel: message.channel,
+        text: "Hello! I am your assistant.",
+        thread_ts: message.ts, // Optional: If you want to reply in the same thread
+      });
     } catch (e) {
       logger.error(e);
     }
   },
+
+  // threadStarted: async ({ logger }: { logger: any }, say: any) => {
+  //   try {
+  //     await say({ text: "Hello! I am your assistant." });
+  //   } catch (e) {
+  //     logger.error(e);
+  //   }
+  // },
 });
 
 app.assistant(assistant);
