@@ -1,3 +1,5 @@
+// Interfaces
+
 import {
   MessagesListResponse,
   AssistantMessage,
@@ -9,39 +11,16 @@ import {
 const { App, LogLevel, Assistant } = require("@slack/bolt");
 require("dotenv").config();
 const { OpenAI } = require("openai");
-const helmet = require("helmet");
-const express = require("express");
-const winston = require("winston");
 
 const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
 const slackBotToken = process.env.SLACK_BOT_TOKEN;
 const openaiApiKey = process.env.OPENAI_API_KEY;
-const port = process.env.PORT || 3000;
-// const assistantId = process.env.OPENAI_ASSISTANT_ID;
-
-/** Logger Setup */
-const logger = winston.createLogger({
-  level: "info",
-  format: winston.format.json(),
-  transports: [
-    new winston.transports.File({ filename: "error.log", level: "error" }),
-    new winston.transports.File({ filename: "combined.log" }),
-  ],
-});
-
-if (process.env.NODE_ENV !== "production") {
-  logger.add(
-    new winston.transports.Console({
-      format: winston.format.simple(),
-    })
-  );
-}
 
 /** Slack App Initialization */
 const app = new App({
   token: slackBotToken,
   signingSecret: slackSigningSecret,
-  logLevel: LogLevel.INFO,
+  // logLevel: LogLevel.DEBUG, // or LogLevel.INFO
 });
 
 /** OpenAI Setup */
@@ -49,27 +28,26 @@ const openai = new OpenAI({
   apiKey: openaiApiKey,
 });
 
-// If added a system message, it will be prepended to the conversation - currently not used as it gives worse results
-const DEFAULT_SYSTEM_CONTENT = ``;
+//No system message for better results
+// const DEFAULT_SYSTEM_CONTENT = ``;
 
-async function runAssistant(assistantId: string, userInput: string) {
+// !Store thread IDs per channel/thread combination
+const threadContexts: { [key: string]: any } = {};
+
+async function runAssistant(assistantId: string, threadId: any, userInput: string) {
   try {
-    // Create an empty thread
-    const emptyThread = await openai.beta.threads.create();
-    const threadId = emptyThread.id;
-
-    // Adding a Message in the Thread
+    //  Adding a Message in the Thread
     await openai.beta.threads.messages.create(threadId, {
       role: "user",
       content: userInput,
     });
 
-    // Run the AI Assistant
+    // 3. Run the Assistant
     const run = await openai.beta.threads.runs.create(threadId, {
       assistant_id: assistantId,
     });
 
-    // Check Run status and retrieve the AI Assistant's response
+    // 4. Check the Run status and retrieve the Assistant's response
     let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
 
     while (
@@ -78,18 +56,23 @@ async function runAssistant(assistantId: string, userInput: string) {
       runStatus.status !== "cancelled" &&
       runStatus.status !== "expired"
     ) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Poll every 1 second
       runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
     }
 
     if (runStatus.status === "completed") {
-      // Retrieve Messages
+      // 5. Retrieve Messages
       const messages = await openai.beta.threads.messages.list(threadId);
 
-      const messagesData: MessagesListResponse = messages as MessagesListResponse;
-      const assistantMessages: AssistantMessage[] = messagesData.data.filter(
-        message => message.role === "assistant"
-      ) as AssistantMessage[];
+      //Check inferences for message and fix TS
+      interface AssistantMessageData {
+        role: string;
+        content: any;
+      }
+
+      const assistantMessages: AssistantMessageData[] = messages.data.filter(
+        (message: any) => message.role === "assistant"
+      );
 
       if (assistantMessages.length > 0) {
         const response = assistantMessages[0].content[0].text.value;
@@ -101,7 +84,7 @@ async function runAssistant(assistantId: string, userInput: string) {
       return `Run failed with status: ${runStatus.status}`;
     }
   } catch (error: any) {
-    logger.error("Error running assistant:", error);
+    console.error("Error running assistant:", error);
     return `Error: ${error.message}`;
   }
 }
@@ -117,39 +100,52 @@ const assistant = new Assistant({
     setStatus,
   }: UserMessageParams) => {
     const { channel, thread_ts } = message;
+    const contextKey = `${channel}-${thread_ts}`;
 
     try {
       await setTitle(message.text);
       await setStatus("is typing..");
 
+      // Retrieve or create threadId
+      if (!threadContexts[contextKey]) {
+        // 1. Create an empty thread
+        const emptyThread = await openai.beta.threads.create();
+        threadContexts[contextKey] = emptyThread.id;
+      }
+      const threadId = threadContexts[contextKey];
+
+      // if it is the first message in the thread no need to take thread history
       const thread = await client.conversations.replies({
         channel,
         ts: thread_ts,
         oldest: thread_ts,
       });
-      //==================
 
-      const userMessage = { role: "user", content: message.text };
+      //! This adds context directly to the thread via the slack conversation and will pass to openai the whole thread as one message
+      // ! it is not needed as the logic here is to create one threadId and each consecutive message will be added to the thread
+      //   let messages;
 
-      const threadHistory: ThreadHistoryMessage[] = thread.messages.map((m: ThreadMessage) => {
-        const role: "assistant" | "user" = m.bot_id ? "assistant" : "user";
-        return { role, content: m.text };
-      });
+      //     if (thread.messages.length <= 1) {
+      //     messages = [
+      //       { role: "system", content: DEFAULT_SYSTEM_CONTENT },
+      //       { role: "user", content: message.text },
+      //     ];
+      //   } else {
+      //       const threadHistory = thread.messages.slice(0, -1).map(m => {
+      //       const role = m.bot_id ? "assistant" : "user";
+      //       return { role, content: m.text };
+      //     });
+      //     messages = [
+      //       { role: "system", content: DEFAULT_SYSTEM_CONTENT },
+      //       ...threadHistory,
+      //       { role: "user", content: message.text },
+      //     ];
+      //   }
 
-      const messages = [{ role: "system", content: DEFAULT_SYSTEM_CONTENT }, ...threadHistory, userMessage];
-      const response = await runAssistant("asst_Bcy8adckdCKjQOPT2Gebjz5K", JSON.stringify(messages));
+      // Use the existing threadId
+      const response = await runAssistant("asst_Bcy8adckdCKjQOPT2Gebjz5K", threadId, message.text);
+
       await say({ text: response });
-      // Ensure assistantId is a string before calling runAssistant
-      // if (typeof assistantId === "string") {
-      //   const response = await runAssistant("asst_Bcy8adckdCKjQOPT2Gebjz5K", JSON.stringify(messages));
-
-      //   //==================
-
-      //   await say({ text: response });
-      // } else {
-      //   await say({ text: "Error: Assistant ID is not configured correctly." });
-      //   logger.error("Assistant ID is not a string:", assistantId);
-      // }
     } catch (e) {
       logger.error(e);
       await say({ text: "Sorry, something went wrong!" });
@@ -169,15 +165,8 @@ app.assistant(assistant);
 
 (async () => {
   try {
-    await app.start(port);
+    await app.start(process.env.PORT || 3000);
     app.logger.info("⚡️ Bolt app is running!");
-
-    // Express server for additional security and middleware
-    const expressApp = express();
-    expressApp.use(helmet());
-    expressApp.listen(port, () => {
-      logger.info(`Express server listening on port ${port}`);
-    });
   } catch (error) {
     app.logger.error("Failed to start the app", error);
   }
