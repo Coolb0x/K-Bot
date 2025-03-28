@@ -1,6 +1,5 @@
 import { openai } from "./assistant-conf";
 import { AssistantMessageData } from "./types";
-const { OpenAI } = require("openai");
 
 // Run OpenAI Assistant
 export async function runAssistant(assistantId: string, threadId: any, userInput: string) {
