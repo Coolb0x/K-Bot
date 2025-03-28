@@ -1,7 +1,19 @@
 const { Assistant } = require("@slack/bolt");
 import { UserMessageParams } from "./types";
-import { threadContexts, openaiAssistantId, openai } from "./app";
+import { ThreadContexts } from "./types";
 import { runAssistant } from "./assistant-run";
+const { OpenAI } = require("openai");
+const openaiAssistantId = process.env.OPENAI_ASSISTANT_ID;
+const openaiApiKey = process.env.OPENAI_API_KEY;
+
+// OpenAI Setup
+export const openai = new OpenAI({
+  apiKey: openaiApiKey,
+});
+
+// Store thread IDs per channel/thread combination
+// In production I will monitor memory and decie if a LRU or Periodic cleanup is needed
+const threadContexts: ThreadContexts = {};
 
 export const assistant = new Assistant({
   userMessage: async ({ logger, message, say, setTitle, setStatus }: UserMessageParams) => {

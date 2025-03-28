@@ -1,5 +1,6 @@
-import { openai } from "./app";
+import { openai } from "./assistant-conf";
 import { AssistantMessageData } from "./types";
+const { OpenAI } = require("openai");
 
 // Run OpenAI Assistant
 export async function runAssistant(assistantId: string, threadId: any, userInput: string) {
@@ -31,7 +32,6 @@ export async function runAssistant(assistantId: string, threadId: any, userInput
     if (runStatus.status === "completed") {
       // Retrieve Messages
       const messages = await openai.beta.threads.messages.list(threadId);
-
       const assistantMessages: AssistantMessageData[] = messages.data.filter(
         (message: any) => message.role === "assistant"
       );
