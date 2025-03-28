@@ -5,6 +5,7 @@ const { OpenAI } = require("openai");
 const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
 const slackBotToken = process.env.SLACK_BOT_TOKEN;
 const openaiApiKey = process.env.OPENAI_API_KEY;
+const openaiAssistantId = process.env.OPENAI_ASSISTANT_ID;
 
 // Slack App Initialization
 const app = new App({
@@ -22,6 +23,7 @@ const openai = new OpenAI({
 // Store thread IDs per channel/thread combination
 const threadContexts: { [key: string]: any } = {};
 
+// Run OpenAI Assistant
 async function runAssistant(assistantId: string, threadId: any, userInput: string) {
   try {
     //  Adding a Message in the Thread
@@ -71,8 +73,9 @@ async function runAssistant(assistantId: string, threadId: any, userInput: strin
   }
 }
 
+//client
 const assistant = new Assistant({
-  userMessage: async ({ client, logger, message, say, setTitle, setStatus }: UserMessageParams) => {
+  userMessage: async ({ logger, message, say, setTitle, setStatus }: UserMessageParams) => {
     const { channel, thread_ts } = message;
     const contextKey = `${channel}-${thread_ts}`;
 
@@ -82,58 +85,48 @@ const assistant = new Assistant({
 
       // Retrieve or create threadId
       if (!threadContexts[contextKey]) {
-        // 1. Create an empty thread
         const emptyThread = await openai.beta.threads.create();
         threadContexts[contextKey] = emptyThread.id;
       }
       const threadId = threadContexts[contextKey];
 
       // if it is the first message in the thread no need to take thread history
-      const thread = await client.conversations.replies({
-        channel,
-        ts: thread_ts,
-        oldest: thread_ts,
-      });
+      // const thread = await client.conversations.replies({
+      //   channel,
+      //   ts: thread_ts,
+      //   oldest: thread_ts,
+      // });
 
       // Use the existing threadId
-      const response = await runAssistant("asst_Bcy8adckdCKjQOPT2Gebjz5K", threadId, message.text);
-
+      const response = await runAssistant(
+        openaiAssistantId || "Error: Missing Assistant ID",
+        threadId,
+        message.text
+      );
       await say({ text: response });
     } catch (e) {
       logger.error(e);
       await say({ text: "Sorry, something went wrong!" });
     }
   },
-  // The below threadStarted is the default behavior when a thread is started and required by the Assistant
 
+  // The below threadStarted is the default behavior when a thread is started and required by the Assistant
   threadStarted: async ({ logger, message, client }: { logger: any; message: any; client: any }) => {
-    // JUST to debug / remove later
-    logger.info("Message object:", message);
     try {
-      // Ensure the message object is valid
       if (!message || !message.channel) {
         logger.error("Invalid message object: Missing 'channel' property.");
         return;
       }
 
-      // Use client.chat.postMessage to send a message
       await client.chat.postMessage({
         channel: message.channel,
         text: "Hello! I am your assistant.",
-        thread_ts: message.ts, // Optional: If you want to reply in the same thread
+        thread_ts: message.ts,
       });
     } catch (e) {
       logger.error(e);
     }
   },
-
-  // threadStarted: async ({ logger }: { logger: any }, say: any) => {
-  //   try {
-  //     await say({ text: "Hello! I am your assistant." });
-  //   } catch (e) {
-  //     logger.error(e);
-  //   }
-  // },
 });
 
 app.assistant(assistant);
@@ -141,7 +134,7 @@ app.assistant(assistant);
 (async () => {
   try {
     await app.start(process.env.PORT || 3000);
-    app.logger.info("⚡️ Bolt app is running!");
+    app.logger.info("⚡️ Slack Bolt app is running!");
   } catch (error) {
     app.logger.error("Failed to start the app", error);
   }
