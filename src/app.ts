@@ -1,5 +1,6 @@
 require("dotenv").config();
-import { AssistantMessageData, UserMessageParams } from "./types";
+import { AssistantMessageData, UserMessageParams, ThreadContexts } from "./types";
+import { assistant } from "./assistantConfig";
 const { App, LogLevel, Assistant } = require("@slack/bolt");
 const { OpenAI } = require("openai");
 const helmet = require("helmet");
@@ -8,7 +9,7 @@ const winston = require("winston");
 const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
 const slackBotToken = process.env.SLACK_BOT_TOKEN;
 const openaiApiKey = process.env.OPENAI_API_KEY;
-const openaiAssistantId = process.env.OPENAI_ASSISTANT_ID;
+export const openaiAssistantId = process.env.OPENAI_ASSISTANT_ID;
 const port = process.env.PORT || 3000;
 
 /** Winston Logger Setup */
@@ -38,16 +39,16 @@ const app = new App({
 });
 
 // OpenAI Setup
-const openai = new OpenAI({
+export const openai = new OpenAI({
   apiKey: openaiApiKey,
 });
 
 // Store thread IDs per channel/thread combination
-// Simple in-memory store, but in production I will monitor memory and decie if a LRU or Periodic cleanup is needed
-const threadContexts: { [key: string]: any } = {};
+// In production I will monitor memory and decie if a LRU or Periodic cleanup is needed
+export const threadContexts: ThreadContexts = {};
 
 // Run OpenAI Assistant
-async function runAssistant(assistantId: string, threadId: any, userInput: string) {
+export async function runAssistant(assistantId: string, threadId: any, userInput: string) {
   try {
     //  Adding a Message in the Thread
     await openai.beta.threads.messages.create(threadId, {
@@ -96,53 +97,7 @@ async function runAssistant(assistantId: string, threadId: any, userInput: strin
   }
 }
 
-const assistant = new Assistant({
-  userMessage: async ({ logger, message, say, setTitle, setStatus }: UserMessageParams) => {
-    const { channel, thread_ts } = message;
-    const contextKey = `${channel}-${thread_ts}`;
-
-    try {
-      await setTitle(message.text);
-      await setStatus("is typing..");
-
-      // Retrieve or create threadId
-      if (!threadContexts[contextKey]) {
-        const emptyThread = await openai.beta.threads.create();
-        threadContexts[contextKey] = emptyThread.id;
-      }
-      const threadId = threadContexts[contextKey];
-
-      // Use the existing threadId
-      const response = await runAssistant(
-        openaiAssistantId || "Error: Missing Assistant ID",
-        threadId,
-        message.text
-      );
-      await say({ text: response });
-    } catch (e) {
-      logger.error(e);
-      await say({ text: "Sorry, something went wrong!" });
-    }
-  },
-
-  // The below threadStarted is the default behavior when a thread is started and required by the Assistant
-  threadStarted: async ({ logger, message, client }: { logger: any; message: any; client: any }) => {
-    try {
-      if (!message || !message.channel) {
-        logger.error("Invalid message object: Missing 'channel' property.");
-        return;
-      }
-
-      await client.chat.postMessage({
-        channel: message.channel,
-        text: "Hello! I am your assistant.",
-        thread_ts: message.ts,
-      });
-    } catch (e) {
-      logger.error(e);
-    }
-  },
-});
+// Assistant Configuration was here new Assistant
 
 app.assistant(assistant);
 

@@ -18,3 +18,6 @@ export interface AssistantMessageData {
   role: string;
   content: any;
 }
+export interface ThreadContexts {
+  [key: string]: any;
+}
