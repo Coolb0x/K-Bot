@@ -73,7 +73,6 @@ async function runAssistant(assistantId: string, threadId: any, userInput: strin
   }
 }
 
-//client
 const assistant = new Assistant({
   userMessage: async ({ logger, message, say, setTitle, setStatus }: UserMessageParams) => {
     const { channel, thread_ts } = message;
@@ -89,13 +88,6 @@ const assistant = new Assistant({
         threadContexts[contextKey] = emptyThread.id;
       }
       const threadId = threadContexts[contextKey];
-
-      // if it is the first message in the thread no need to take thread history
-      // const thread = await client.conversations.replies({
-      //   channel,
-      //   ts: thread_ts,
-      //   oldest: thread_ts,
-      // });
 
       // Use the existing threadId
       const response = await runAssistant(
