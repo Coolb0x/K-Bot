@@ -43,6 +43,7 @@ const openai = new OpenAI({
 });
 
 // Store thread IDs per channel/thread combination
+// Simple in-memory store, but in production I will monitor memory and decie if a LRU or Periodic cleanup is needed
 const threadContexts: { [key: string]: any } = {};
 
 // Run OpenAI Assistant
