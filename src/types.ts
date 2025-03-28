@@ -5,7 +5,6 @@ export interface SlackMessage {
   bot_id?: string;
   ts: string;
 }
-
 export interface UserMessageParams {
   client: any;
   logger: any;
@@ -15,7 +14,6 @@ export interface UserMessageParams {
   setTitle: (title: string) => Promise<void>;
   setStatus: (status: string) => Promise<void>;
 }
-
 export interface AssistantMessageData {
   role: string;
   content: any;

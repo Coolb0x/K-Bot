@@ -2,10 +2,32 @@ require("dotenv").config();
 import { AssistantMessageData, UserMessageParams } from "./types";
 const { App, LogLevel, Assistant } = require("@slack/bolt");
 const { OpenAI } = require("openai");
+const helmet = require("helmet");
+const express = require("express");
+const winston = require("winston");
 const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
 const slackBotToken = process.env.SLACK_BOT_TOKEN;
 const openaiApiKey = process.env.OPENAI_API_KEY;
 const openaiAssistantId = process.env.OPENAI_ASSISTANT_ID;
+const port = process.env.PORT || 3000;
+
+/** Winston Logger Setup */
+const logger = winston.createLogger({
+  level: "info",
+  format: winston.format.json(),
+  transports: [
+    new winston.transports.File({ filename: "error.log", level: "error" }),
+    new winston.transports.File({ filename: "combined.log" }),
+  ],
+});
+
+if (process.env.NODE_ENV !== "production") {
+  logger.add(
+    new winston.transports.Console({
+      format: winston.format.simple(),
+    })
+  );
+}
 
 // Slack App Initialization
 const app = new App({
@@ -125,8 +147,13 @@ app.assistant(assistant);
 
 (async () => {
   try {
-    await app.start(process.env.PORT || 3000);
-    app.logger.info("⚡️ Slack Bolt app is running!");
+    await app.start(port);
+    app.logger.info("⚡️ Slack Bolt K-Bot app is running!");
+    const expressApp = express();
+    expressApp.use(helmet());
+    expressApp.listen(port, () => {
+      logger.info(`Express server listening on port ${port}`);
+    });
   } catch (error) {
     app.logger.error("Failed to start the app", error);
   }
