@@ -1,7 +1,6 @@
 const { Assistant } = require("@slack/bolt");
-// const { openaiAssistantId, openai } = require("./app");
 import { UserMessageParams } from "./types";
-import { threadContexts, runAssistant, openaiAssistantId, openai } from "./app"; // Import threadContexts
+import { threadContexts, runAssistant, openaiAssistantId, openai } from "./app";
 
 export const assistant = new Assistant({
   userMessage: async ({ logger, message, say, setTitle, setStatus }: UserMessageParams) => {
