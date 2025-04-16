@@ -16,12 +16,10 @@ COPY package.json package-lock.json ./
 # Use BuildKit cache mount for faster npm install/ci runs
 # npm ci is generally preferred in CI/build environments to ensure exact dependencies are installed
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+    npm ci --only=production
 
 # Copy the application source code
-# CORRECTED: Removed invalid --link flag. Simply copy the directory/file.
 COPY ./src ./src
-# CORRECTED: Removed invalid --link flag.
 COPY tsconfig.json ./
 
 # Build the TypeScript application (compiles TS to JS, usually into ./dist)
@@ -44,9 +42,10 @@ COPY --from=builder /app/package.json ./package.json # Also copy package-lock.js
 ENV NODE_ENV=production
 # Optional: Adjust memory limit as needed. Default Cloud Run limits might suffice.
 ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV PORT=8080 # Cloud Run expects your app to listen on the PORT env variable
 
 # Create a non-root user for security best practices
-RUN useradd --create-home --shell /bin/false appuser # More secure options for user creation
+RUN adduser --disabled-password --gecos '' appuser # More secure and standard way to add a user
 USER appuser
 
 # Expose the port the application will listen on
