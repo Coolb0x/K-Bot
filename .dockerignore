@@ -1,0 +1,44 @@
+# Node.js dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Environment files
+.env*
+
+# Build outputs
+dist/
+out/
+
+# IDE files
+.idea/
+.vscode/
+
+# Git files
+.git/
+.gitignore
+
+# Documentation
+*.md
+
+# Temporary files
+*.tmp
+
+# TypeScript build artifacts
+*.js
+*.d.ts
+
+# Exclude Dockerfile and docker-compose files
+!Dockerfile*
+!docker-compose*
+
+# Exclude source files
+!src/
+
+# Exclude configuration files
+!package.json
+!tsconfig.json
+
+# Exclude README
+!README.md
