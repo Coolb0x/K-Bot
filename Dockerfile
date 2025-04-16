@@ -10,7 +10,7 @@ FROM node:${NODE_VERSION}-slim AS builder
 WORKDIR /app
 
 # Copy package files and install dependencies
-COPY --from package.json package-lock.json ./
+COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
